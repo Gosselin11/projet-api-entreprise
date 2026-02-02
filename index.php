@@ -38,7 +38,7 @@ if (!empty($etablissements)) {
     
     $lignesMail = "";
     foreach($etablissements as $index => $e) {
-        // EXTRACTION DES DONNÉES
+        // Extraction des données
         $nom = $e['uniteLegale']['denominationUniteLegale'] ?? 'Non diffusable';
         $siret = $e['siret'];
         $ville = $e['adresseEtablissement']['libelleCommuneEtablissement'] ?? 'N/C';
@@ -87,7 +87,11 @@ if (!empty($etablissements)) {
             </table>";
         
         if ($nbTotal > 20) {
-            $corpsMail .= "<p>... et " . ($nbTotal - 20) . " autres à consulter sur votre PC.</p>";
+            $corpsMail .= "<p>
+                    <a href='http://localhost/projet-api-entreprise/index.php' 
+                       style='display: inline-block; padding: 10px 20px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+                       Voir la liste complète</a>
+                </p>";
         }
         $corpsMail .= "</body></html>";
 

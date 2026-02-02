@@ -21,7 +21,7 @@ class Mailer {
             $mail->Port       = 587;
             $mail->CharSet    = 'UTF-8';
 
-            $mail->setFrom($this->config['user'], "Veille Sirene");
+            $mail->setFrom($this->config['user'], "Nouvelles Entreprise");
             $mail->addAddress($this->config['dest']);
             $mail->isHTML(true);
             $mail->Subject = "Rapport ($total) - Aude $date";
