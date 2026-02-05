@@ -25,8 +25,7 @@ class SireneApi {
             "Accept: application/json"
         ]);
         $response = curl_exec($ch);
-       // echo "<pre>";
-       // var_dump(json_decode($response)); die();
         return json_decode($response, true);
     }
+
 }
