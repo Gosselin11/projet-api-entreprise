@@ -13,7 +13,7 @@ $dotenv->load();
 
 
 $dateCible = $_GET['date_debut'] ?? date('Y-m-d', strtotime('-1 month'));
-$emailSaisi = $_GET['destinataire'] ?? $_ENV['DESTINATAIRE_MAIL'];
+$emailSaisi = $_GET['destinataire'] ?? '';
 
 
 
@@ -127,11 +127,13 @@ if (!empty($etablissements)) {
             <label style="font-weight: bold;">Envoyer à :</label>
             <input type="email" id="email_destination" 
                    value="<?php echo htmlspecialchars($emailSaisi); ?>" 
-                   placeholder="example@mail.com" 
+                   placeholder="exemple@mail.com" 
                    style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 250px;">
             
             <a href="#" 
-               onclick="this.href='?action=send&date_debut=<?php echo $dateCible; ?>&destinataire=' + encodeURIComponent(document.getElementById('email_destination').value);"
+               onclick="let mail = document.getElementById('email_destination').value; 
+            if(mail == '') { alert('Veuillez saisir une adresse mail.'); return false; }
+this.href='?action=send&date_debut=<?php echo $dateCible; ?>&destinataire=' + encodeURIComponent(document.getElementById('email_destination').value);"
                style="padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
                Envoyer Mail
             </a>
