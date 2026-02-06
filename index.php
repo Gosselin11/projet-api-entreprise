@@ -2,7 +2,7 @@
 
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-// set_time_limit(0);
+ // set_time_limit(0);
 
 require 'vendor/autoload.php';
 require 'src/SireneApi.php';
@@ -145,6 +145,12 @@ this.href='?action=send&date_debut=<?php echo $dateCible; ?>&destinataire=' + en
            style="padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
            Télécharger PDF
         </a>
+        <a href="annuaireApi.php?date_debut=<?php echo $dateCible; ?>" 
+       style="margin-left: auto; padding: 10px 20px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;"
+       onclick="return confirm('Enrichir les noms peut prendre quelques secondes. Continuer ?');">
+       Enrichir les données
+    </a>
+
     </div>
 
     <?php
