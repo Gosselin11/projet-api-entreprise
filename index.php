@@ -15,7 +15,11 @@ $dotenv->load();
 $dateCible = $_GET['date_debut'] ?? date('Y-m-d', strtotime('-1 month'));
 $emailSaisi = $_GET['destinataire'] ?? '';
 
-
+// Détection du lancement par fichier .bat
+if (php_sapi_name() === 'cli') {
+    $_GET['action'] = 'send';
+    $emailSaisi = $_ENV['SMTP_USER']; 
+}
 
 $api = new SireneApi($_ENV['INSEE_API_KEY'], $_ENV['DEPARTEMENT']);
 
@@ -222,20 +226,14 @@ this.href='?action=send&date_debut=<?php echo $dateCible; ?>&destinataire=' + en
             'dest' => $emailSaisi
         ]);
         
-        if ($mailer->sendReport($dateCible, $nbTotal, $corpsMail)) {
-            header("Location: index.php?date_debut=$dateCible&destinataire=" . urlencode($emailSaisi) . "&sent=1");
-        exit;
-
-        }
+        
     }
 } 
 if (isset($_GET['sent']) && $_GET['sent'] == 1) {
     echo "<p style='color:green; font-weight:bold;'>Mail envoyé avec succès à : $emailSaisi</p>";
 }
 
-else {
-    echo "<h3>Aucune entreprise trouvée.</h3>";
-}
+
 ?>
 </body>
 </html>
