@@ -17,29 +17,35 @@ $modifie = false;
 foreach ($cacheData['data'] as &$e) {
     $nomActuel = $e['uniteLegale']['denominationUniteLegale'] ?? 'Non diffusable';
 
-    if ($nomActuel === 'Non diffusable') {
+    // On enrichit si le nom est masqué OU si le libellé est absent
+    if ($nomActuel === 'Non diffusable' || !isset($e['uniteLegale']['libelleActivitePrincipale'])) {
         $siret = $e['siret'];
-        // Utilisation de l'API de recherche d'entreprises (gratuite et rapide)
         $url = "https://recherche-entreprises.api.gouv.fr/search?q=$siret";
-        
         $res = @file_get_contents($url);
+        
         if ($res) {
             $dataExt = json_decode($res, true);
-            if (!empty($dataExt['results'][0]['nom_complet'])) {
-                // On remplace le nom et on ajoute une petite marque pour savoir que c'est enrichi
-                $e['uniteLegale']['denominationUniteLegale'] = "*" . $dataExt['results'][0]['nom_complet'];
+            if (!empty($dataExt['results'][0])) {
+                $info = $dataExt['results'][0];
+
+                // On remplace le nom
+                $e['uniteLegale']['denominationUniteLegale'] = "*" . ($info['nom_complet'] ?? 'Nom inconnu');
+
+                // On ajoute le libellé de l'activité (Dénomination NAF)
+                $e['uniteLegale']['libelleActivitePrincipale'] = $info['libelle_activite_principale'] ?? 'N/C';
+
+                $e['uniteLegale']['section_activite_principale'] = $info['section_activite_principale'] ?? 'N/C';
+                
                 $modifie = true;
             }
         }
-        // Petit délai pour ne pas brusquer l'API si tu as beaucoup de lignes
         usleep(100000); // 0.1 seconde
     }
 }
 
 if ($modifie) {
-    file_put_contents($cacheFile, json_encode($cacheData));
+    file_put_contents($cacheFile, json_encode($cacheData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 }
 
-// Retour à l'index avec un message de succès
 header("Location: index.php?date_debut=$dateCible&enriched=1");
 exit;
