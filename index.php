@@ -146,7 +146,6 @@ if (!empty($etablissements)) {
                 <th>SIRET</th>
                 <th>Code APE</th>
                 <th>Code NAF</th>
-                
                 <th>Denomination NAF</th>
                 <th>Domaine d'activité</th>
                 <th>Mis en ligne</th>
@@ -191,7 +190,7 @@ if (!empty($etablissements)) {
                 <td style='padding: 8px;'>$codeAPE</td>
                 <td style='padding: 8px;'>$codeNAF25</td>
                 <td style='padding: 8px;'>$domaineNAF</td>
-                <td style='padding: 8px;'><strong>$domaineActivite</strong></td>
+                <td style='padding: 8px;'>$domaineActivite</td>
                 <td style='padding: 8px;'>$dateTraitement</td>
                 <td style='padding: 8px;'><a href='$lienFigaro' target='_blank'>Figaro</a></td>
                 <td style='padding: 8px;'><a href='$lienAnnuaire' target='_blank'>Annuaire</a></td>

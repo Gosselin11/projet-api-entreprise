@@ -4,6 +4,8 @@ ini_set('memory_limit', '512M');
 set_time_limit(300);
 
 require 'vendor/autoload.php';
+require 'nomenclature.php';
+
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -36,7 +38,7 @@ $html = "<html><head>
 <style>
     body { font-family: DejaVu Sans, sans-serif; font-size: 9px; }
     header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #87a9ce; padding-bottom: 10px; }
-    table { width:100%; border-collapse:collapse; }
+    table { width:auto; border-collapse:collapse; }
     th { background-color: #eeeeee; color: black; padding: 5px; text-transform: uppercase; border: 1px solid #dddddd; }
     td { border: 1px solid #dddddd; padding: 4px; }
     .page-number:after { content: counter(page); }
@@ -55,11 +57,15 @@ $html = "<html><head>
     <table>
         <thead>
             <tr>
-                <th>Entreprise</th>
-                <th>Ville</th>
+                <th>Nom</th>
+                <th>Commune</th>
                 <th>CP</th>
                 <th>SIRET</th>
-                <th>Date Traitement</th>
+                <th>Code APE</th>
+                <th>Code NAF</th>
+                <th>Denomination NAF</th>
+                <th>Domaine d'activité</th>
+                <th>Mis en ligne</th>
                 <th>Fiche</th>
                 <th>Annuaire</th>
             </tr>
@@ -71,19 +77,30 @@ foreach ($etablissements as $e) {
     $ville = $e['adresseEtablissement']['libelleCommuneEtablissement'] ?? 'N/C';
     $cp = $e['adresseEtablissement']['codePostalEtablissement'] ?? 'N/C';
     $siret = $e['siret'];
-    $date = isset($e['dateDernierTraitementEtablissement']) ? substr($e['dateDernierTraitementEtablissement'], 0, 10) : 'N/C';
+    $dateTraitement = isset($e['dateDernierTraitementEtablissement']) ? substr($e['dateDernierTraitementEtablissement'], 0, 10) : 'N/C';
+    $codeAPE = $e['uniteLegale']['activitePrincipaleUniteLegale'] ?? ($e['adresseEtablissement']['activitePrincipaleEtablissement'] ?? 'N/C'); 
+    $codeNAF25 = $e['uniteLegale']['activitePrincipaleNAF25UniteLegale'] ?? 'N/C';
+    $domaineNAF = $e['uniteLegale']['section_activite_principale'] ?? 'N/C';
+    if (is_array($domaineNAF)) { 
+        $domaineNAF = $domaineNAF['code'] ??  'N/C';
+    }
+        $domaineActivite = getNatureEntreprise($codeAPE);
     
     $lienFigaro = "https://entreprises.lefigaro.fr/recherche?q=$siret";
     $lienAnnuaire = "https://annuaire-entreprises.data.gouv.fr/entreprise/$siret";
 
     $html .= "<tr>
-                <td><strong>$nom</strong></td>
+                <td>$nom</td>
                 <td>$ville</td>
                 <td>$cp</td>
                 <td>$siret</td>
-                <td>$date</td>
-                <td><a href='$lienFigaro' style='color:blue; text-decoration:none;'>Figaro</a></td>
-                <td><a href='$lienAnnuaire' style='color:blue; text-decoration:none;'>Annuaires</a></td>
+                <td>$codeAPE</td>
+                <td>$codeNAF25</td>
+                <td>$domaineNAF</td>
+                <td>$domaineActivite</td>
+                <td>$dateTraitement</td>
+                <td><a href='$lienFigaro' target='_blank'>Figaro</a></td>
+                <td><a href='$lienAnnuaire' target='_blank'>Annuaire</a></td>
               </tr>";
 }
 
