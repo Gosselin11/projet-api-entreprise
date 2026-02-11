@@ -2,7 +2,7 @@
 
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-set_time_limit(0);
+// set_time_limit(0);
 
 require 'vendor/autoload.php';
 require 'src/SireneApi.php';
@@ -14,13 +14,17 @@ $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
 $dateCible = $_GET['date_debut'] ?? date('Y-m-d', strtotime('-1 month'));
-$emailSaisi = $_GET['destinataire'] ?? '';
 
-// Détection du lancement par fichier .bat
+$emailSaisi = $_POST['destinataire'] ?? ($_GET['destinataire'] ?? '');
+
+// Détection de l'action d'envoi
+$action = $_GET['action'] ?? '';
+
 if (php_sapi_name() === 'cli') {
-    $_GET['action'] = 'send';
+    $action = 'send';
     $emailSaisi = $_ENV['SMTP_USER']; 
 }
+
 
 $api = new SireneApi($_ENV['INSEE_API_KEY'], $_ENV['DEPARTEMENT']);
 
@@ -37,6 +41,7 @@ if (!is_dir($cacheFolder)) {
 
 $cacheFile = $cacheFolder . DIRECTORY_SEPARATOR . 'sirene_' . $_ENV['DEPARTEMENT'] . '_' . $dateCible . '.json';
 $cacheExpiration = 86400; // 24 heures
+
 
 $statusMessage = ""; 
 
@@ -105,36 +110,38 @@ else {
 if (!empty($etablissements)) {
     $nbTotal = $nbTotalInsee; 
     ?>
-
-    <div style="margin-bottom:20px; display: flex; gap: 15px; align-items: center; background: #ebf3f0; padding: 15px; border-radius: 8px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <label style="font-weight: bold;">Envoyer à :</label>
-            <input type="email" id="email_destination" 
-                   value="<?php echo htmlspecialchars($emailSaisi); ?>" 
-                   placeholder="exemple@mail.com" 
-                   style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 250px;">
-            
-            <a href="#" 
-               onclick="let mail = document.getElementById('email_destination').value; 
-               if(mail == '') { alert('Veuillez saisir une adresse mail.'); return false; }
-               this.href='?action=send&date_debut=<?php echo $dateCible; ?>&destinataire=' + encodeURIComponent(mail);"
-               style="padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-               Envoyer Mail
-            </a>
-        </div>
-
-        <span style="color: #ccc;">|</span>
-
-        <a href="generer_pdf.php?date_debut=<?php echo $dateCible; ?>" target="_blank" 
-           style="padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-            Télécharger PDF
-        </a>
-        <a href="annuaireApi.php?date_debut=<?php echo $dateCible; ?>" 
-           style="margin-left: auto; padding: 10px 20px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;"
-           onclick="return confirm('Enrichir les noms peut prendre quelques secondes. Continuer ?');">
-            Enrichir les données
-        </a>
+<form method="POST" action="?action=send&date_debut=<?php echo $dateCible; ?>" style="margin-bottom:20px; display: flex; gap: 15px; align-items: center; background: #ebf3f0; padding: 15px; border-radius: 8px;">
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <label for="email_destination" style="font-weight: bold;">Envoyer à :</label>
+        
+        <input type="email" 
+               name="destinataire" 
+               id="email_destination" 
+               value="<?php echo htmlspecialchars($emailSaisi); ?>" 
+               placeholder="exemple@mail.com" 
+               required
+               style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 250px;">
+        
+        <button type="submit" 
+                style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+            Envoyer Mail
+        </button>
     </div>
+
+    <span style="color: #ccc;">|</span>
+
+    <a href="generer_pdf.php?date_debut=<?php echo $dateCible; ?>" target="_blank" 
+       style="padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+        Télécharger PDF
+    </a>
+
+    <a href="annuaireApi.php?date_debut=<?php echo $dateCible; ?>" 
+       style="margin-left: auto; padding: 10px 20px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;"
+       onclick="return confirm('Enrichir les noms peut prendre quelques secondes. Continuer ?');">
+        Enrichir les données
+    </a>
+</form>
 
     <?php
     echo "<h2>Rapport du $dateCible ($nbTotal résultats officiels)</h2>";
@@ -236,7 +243,13 @@ if (!empty($etablissements)) {
         ]);
         
         $mailer->sendReport($dateCible, $nbTotal, $corpsMail);
+        if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            header('Location: index.php?sent=1');
+        }
+        
         echo "<p style='color:green; font-weight:bold;'>Mail envoyé avec succès à : $emailSaisi</p>";
+
+        
     }
 } 
 ?>

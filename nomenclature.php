@@ -41,7 +41,7 @@ function getNatureEntreprise($codeAPE) {
     if ($val >= 36 && $val <= 39) return $sections['E'];
     if ($val >= 41 && $val <= 43) return $sections['F'];
     if ($val >= 45 && $val <= 47) return $sections['G'];
-    if ($val >= 49 && $val <= 53) return $sections['A'];
+    if ($val >= 49 && $val <= 53) return $sections['H'];
     if ($val >= 55 && $val <= 56) return $sections['I'];
     if ($val >= 58 && $val <= 63) return $sections['J'];
     if ($val >= 64 && $val <= 66) return $sections['K'];
