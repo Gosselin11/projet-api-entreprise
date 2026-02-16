@@ -7,31 +7,23 @@ error_reporting(E_ALL);
 require 'vendor/autoload.php';
 require 'src/SireneApi.php';
 require 'src/Mailer.php';
-
 require 'nomenclature.php'; 
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
 $dateCible = $_GET['date_debut'] ?? date('Y-m-d', strtotime('-1 month'));
-
 $emailSaisi = $_POST['destinataire'] ?? ($_GET['destinataire'] ?? '');
 
 // Détection de l'action d'envoi
 $action = $_GET['action'] ?? '';
-
+$forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] == '1';
 if (php_sapi_name() === 'cli') {
     $action = 'send';
     $emailSaisi = $_ENV['SMTP_USER']; 
 }
 
-
 $api = new SireneApi($_ENV['INSEE_API_KEY'], $_ENV['DEPARTEMENT']);
-
-$etablissements = [];
-$curseur = '*';
-$nbTotalInsee = 0; 
-
 // Configuration du cache
 $cacheFolder = __DIR__ . DIRECTORY_SEPARATOR . 'cache';
 
@@ -41,48 +33,95 @@ if (!is_dir($cacheFolder)) {
 
 $cacheFile = $cacheFolder . DIRECTORY_SEPARATOR . 'sirene_' . $_ENV['DEPARTEMENT'] . '_' . $dateCible . '.json';
 $cacheExpiration = 86400; // 24 heures
-
-
 $statusMessage = ""; 
 
-// On vérifie si un cache valide existe
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $cacheExpiration)) {
-    $content = file_get_contents($cacheFile);
-    if ($content) {
-        $cacheData = json_decode($content, true);
-        $etablissements = $cacheData['data'] ?? [];
-        $nbTotalInsee = $cacheData['total'] ?? 0;
-        $statusMessage = "Données chargées depuis le cache local.";
-    }
-} 
-else {
+// Gestion du Cache (avec option refresh)
+if (!$forceRefresh && file_exists($cacheFile) && (time() - filemtime($cacheFile) < $cacheExpiration)) {
+    $cacheData = json_decode(file_get_contents($cacheFile), true);
+    $etablissements = $cacheData['data'] ?? [];
+    $nbTotalInsee = $cacheData['total'] ?? 0;
+    $statusMessage = "Données chargées depuis le cache local.";
+} else {
+    // Appel API
     try {
+        $etablissements = [];
+        $curseur = '*';
         do {
             $data = $api->fetchEntreprises($dateCible, $curseur);
-            if ($curseur === '*') {
-                $nbTotalInsee = $data['header']['total'] ?? 0;
-            }
+            if ($curseur === '*') $nbTotalInsee = $data['header']['total'] ?? 0;
             if (isset($data['etablissements'])) {
-                foreach ($data['etablissements'] as $e) {
-                    $etablissements[] = $e;
-                }
+                foreach ($data['etablissements'] as $e) $etablissements[] = $e;
             }
             $curseur = $data['header']['curseurSuivant'] ?? null;
         } while ($curseur && $curseur !== '*');
 
         if (!empty($etablissements)) {
-            file_put_contents($cacheFile, json_encode([
-                'total' => $nbTotalInsee,
-                'data' => $etablissements
-            ]));
+            file_put_contents($cacheFile, json_encode(['total' => $nbTotalInsee, 'data' => $etablissements]));
         }
     } catch (Exception $e) {
-        if (file_exists($cacheFile)) {
-            $cacheData = json_decode(file_get_contents($cacheFile), true);
-            $etablissements = $cacheData['data'];
-            $nbTotalInsee = $cacheData['total'];
-            $statusMessage = "Secours (L'API ne répond pas)";
+        $statusMessage = "Erreur API.";
+    }
+}
+
+// Logique d'envoie de mail avant le html 
+if ($action === 'send' && !empty($etablissements)) {
+    $nbTotal = $nbTotalInsee;
+    $lignesMail = "";
+    $lienDetail = "http://localhost/projet-api-entreprise/index.php?date_debut=" . $dateCible;
+
+    foreach($etablissements as $index => $e) {
+        if ($index < 20) {
+            $nom = $e['uniteLegale']['denominationUniteLegale'] ?? 'Non diffusable';
+            $ville = $e['adresseEtablissement']['libelleCommuneEtablissement'] ?? 'N/C';
+            $siret = $e['siret'];
+            $codeAPE = $e['uniteLegale']['activitePrincipaleUniteLegale'] ?? ($e['adresseEtablissement']['activitePrincipaleEtablissement'] ?? 'N/C');
+            $codeNAF25 = $e['uniteLegale']['activitePrincipaleNAF25UniteLegale'] ?? 'N/C';
+            $domaineNAF = $e['uniteLegale']['section_activite_principale'] ?? 'N/C';
+            if (is_array($domaineNAF)) $domaineNAF = $domaineNAF['code'] ?? 'N/C';
+            $domaineActivite = getNatureEntreprise($codeAPE);
+            $lienFigaro = "https://entreprises.lefigaro.fr/recherche?q=$siret";
+            $lienAnnuaire = "https://annuaire-entreprises.data.gouv.fr/entreprise/$siret";
+
+            $lignesMail .= "<tr>
+                <td style='border: 1px solid #dddddd; padding: 8px;'><strong>$nom</strong></td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'>$ville</td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'>$siret</td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'>$codeAPE</td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'>$codeNAF25</td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'>$domaineNAF</td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'>$domaineActivite</td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'><a href='$lienFigaro'>Figaro</a></td>
+                <td style='border: 1px solid #dddddd; padding: 8px;'><a href='$lienAnnuaire'>Annuaire</a></td>
+            </tr>";
         }
+    }
+
+    $corpsMail = "<html><body style='font-family: Arial;'>
+        <h3>Bonjour, voici les entreprises du $dateCible ($nbTotal au total).</h3>
+        <table style='border-collapse: collapse; width: 100%; border: 1px solid #dddddd;'>
+            <tr style='background-color: #eeeeee;'>
+                <th>Entreprise</th><th>Ville</th><th>SIRET</th><th>code APE</th><th>Code NAF</th><th>Denomination NAF</th><th>Domaine d'activité</th><th>Fiche</th><th>Annuaire</th>
+            </tr>
+            $lignesMail
+        </table>
+        <p style='margin-top: 20px;'>
+            <a href='$lienDetail' style='display: inline-block; padding: 12px 25px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+                Voir le détail complet au $dateCible
+            </a>
+        </p>
+        </body></html>";
+
+    $mailer = new Mailer([
+        'user' => $_ENV['SMTP_USER'],
+        'pass' => $_ENV['SMTP_PASS'],
+        'dest' => $emailSaisi
+    ]);
+
+    $success = $mailer->sendReport($dateCible, $nbTotal, $corpsMail);
+
+    if (php_sapi_name() !== 'cli') {
+        header("Location: index.php?date_debut=$dateCible&sent=" . ($success ? '1' : '0'));
+        exit;
     }
 }
 ?>
@@ -93,6 +132,14 @@ else {
     <title>Rapport INSEE</title>
 </head>
 <body style="font-family: Arial, sans-serif; margin: 20px;">
+    <?php 
+    // Affichage des messages flash
+    if (isset($_GET['sent'])) {
+        echo $_GET['sent'] == '1' 
+            ? "<p style='color:green; font-weight:bold;'>Mail envoyé avec succès !</p>" 
+            : "<p style='color:red; font-weight:bold;'>Erreur lors de l'envoi.</p>";
+    }
+    ?>
 
     <h2>Recherche d'entreprises (Aude)</h2>
     
@@ -160,7 +207,7 @@ if (!empty($etablissements)) {
                 <th>Annuaire</th>
             </tr>";
     
-    $lignesMail = "";
+    
     foreach($etablissements as $index => $e) {
         $nom = $e['uniteLegale']['denominationUniteLegale'] ?? 'Non diffusable';
         $siret = $e['siret'];
@@ -175,7 +222,6 @@ if (!empty($etablissements)) {
     
     // On récupère la donnée NAF brute pour la colonne Denomination NAF
     $domaineNAF = $e['uniteLegale']['section_activite_principale'] ?? 'N/C';
-    
     
     if (is_array($domaineNAF)) {
         
@@ -202,56 +248,10 @@ if (!empty($etablissements)) {
                 <td style='padding: 8px;'><a href='$lienFigaro' target='_blank'>Figaro</a></td>
                 <td style='padding: 8px;'><a href='$lienAnnuaire' target='_blank'>Annuaire</a></td>
               </tr>";
-        
-        if ($index < 20) {
-            $lignesMail .= "<tr>
-                <td style='border: 1px solid #dddddd; padding: 8px;'><strong>$nom</strong></td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'>$ville</td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'>$siret</td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'>$codeAPE</td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'>$codeNAF25</td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'>$domaineNAF</td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'>$domaineActivite</td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'><a href='$lienFigaro'>Figaro</a></td>
-                <td style='border: 1px solid #dddddd; padding: 8px;'><a href='$lienAnnuaire'>Annuaire</a></td>
-            </tr>";
-        }
     }
     echo "</table>";
 
-    // Mail
-    if (isset($_GET['action']) && $_GET['action'] === 'send') {
-        $corpsMail = "<html><body style='font-family: Arial;'>
-            <h3>Bonjour, voici les entreprises du $dateCible ($nbTotal au total).</h3>
-            <table style='border-collapse: collapse; width: 100%; border: 1px solid #dddddd;'>
-                <tr style='background-color: #eeeeee;'>
-                    <th>Entreprise</th><th>Ville</th><th>SIRET</th><th>code APE</th><th>Code NAF</th><th>Denomination NAF</th><th>Domaine d'activité</th><th>Fiche</th><th>Annuaire</th>
-                </tr>
-                $lignesMail
-            </table>
-            <p style='margin-top: 20px;'>
-                <a href='$lienDetail' style='display: inline-block; padding: 12px 25px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;'>
-                    Voir le détail complet au $dateCible
-                </a>
-            </p>
-            </body></html>";
-
-        $mailer = new Mailer([
-            'user' => $_ENV['SMTP_USER'],
-            'pass' => $_ENV['SMTP_PASS'],
-            'dest' => $emailSaisi
-        ]);
-        
-        $mailer->sendReport($dateCible, $nbTotal, $corpsMail);
-        if ($action === 'send' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-            header('Location: index.php?sent=1');
-        }
-        
-        echo "<p style='color:green; font-weight:bold;'>Mail envoyé avec succès à : $emailSaisi</p>";
-
-        
-    }
-} 
+}
 ?>
 </body>
 </html>
