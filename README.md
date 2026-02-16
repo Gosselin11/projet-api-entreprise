@@ -126,7 +126,9 @@ Installer les dépendances via Composer :
 
 bash
 composer install
-# ou, si tu recrées le projet ailleurs :
+
+Ou, si le projet est recréé ailleurs :
+
 composer require phpmailer/phpmailer:^7.0 vlucas/phpdotenv:^5.6 dompdf/dompdf:^3.1
 
 Configurer .env comme décrit ci‑dessus.
@@ -135,7 +137,7 @@ Placer le projet dans htdocs (XAMPP), par exemple :
 
 C:\xampp\htdocs\projet-api-entreprise\
 
-8. Fonctionnement détaillé
+1. Fonctionnement détaillé
    
 8.1 Récupération des données (SireneApi.php)
 La classe SireneApi :
