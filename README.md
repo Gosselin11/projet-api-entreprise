@@ -1,148 +1,273 @@
-. Suivi des nouvelles entreprises (Aude - 11)
+Suivi des nouvelles entreprises (Aude - 11)
+Ce projet PHP interroge l’API INSEE Sirene 3.11 pour récupérer les nouvelles entreprises (établissements) du département de l’Aude (11), créées ou mises à jour à une date donnée, puis les affiche sous forme de tableau HTML, export PDF et rapport e‑mail.
 
-Ce projet PHP professionnel interroge l’API INSEE Sirene pour récupérer les nouvelles entreprises (établissements) du département de l’Aude (11) créées ou mises à jour durant le dernier mois. Le système les affiche sous forme de tableau dynamique et permet l’envoi d’un rapport e-mail automatisé.
+1. Objectifs du projet
+Suivre quotidiennement ou ponctuellement les créations/mises à jour d’établissements dans le département 11 (Aude).
 
-1. Fonctionnalités détaillées
-Récupération via API Sirene 3.11 : Utilisation du endpoint /siret pour une précision maximale sur les établissements.
+Consolider les données de l’API Sirene dans un cache local JSON pour accélérer les consultations.
 
-Filtrage Géographique : Ciblage exclusif sur le département 11 (Aude) via les codes postaux.
+Produire des rapports exploitables : tableau HTML, PDF, et e‑mail HTML.
 
-Gestion de la Pagination : Support complet des curseurs d'API pour traiter des listes dépassant 1000 résultats.
+Faciliter l’automatisation (planification Windows via fichier .bat).
 
-Architecture POO (Programmation Orientée Objet) : Séparation du code en classes indépendantes pour faciliter l'évolution.
+2. Fonctionnalités principales
+Interrogation de l’API Sirene 3.11 : appel du service /siret avec filtres sur la date et le code postal.
 
-Sécurité des Données : Utilisation du standard .env pour masquer les clés API et mots de passe.
+Filtrage géographique sur le département 11 (code postal 11*).
 
-Affichage Navigateur : Tableau HTML complet avec liens externes vers les fiches Le Figaro Entreprises.
+Gestion de la pagination via les curseurs de l’API (curseur, curseurSuivant).
 
-Rapport Email HTML : Génération d'un e-mail stylisé envoyé via le serveur SMTP de Gmail (PHPMailer).
+Mise en cache des résultats dans des fichiers JSON nommés cache/sirene_<DEPARTEMENT>_<date>.json.
 
-Mode Hybride : Exécution via serveur web (index.php) ou en ligne de commande (CLI/Script .bat).
+Affichage Web complet (tableau HTML détaillé : SIRET, APE, NAF, domaines d’activité, liens Figaro/Annuaire).
 
-2. Structure et Organisation des Fichiers
-   
-L'organisation du projet suit les standards modernes de développement PHP :
+Export PDF via Dompdf avec mise en page adaptée pour un rapport imprimable.
+
+Envoi d’un e‑mail HTML récapitulatif (20 premières entreprises) via PHPMailer et SMTP Gmail (STARTTLS, port 587).
+
+Enrichissement optionnel des données via l’API recherche-entreprises.api.gouv.fr pour compléter les noms et libellés d’activité.
+​
+
+Classification des entreprises par grand domaine d’activité (sections A à U de la NAF) via une fonction de mapping.
+
+3. Technologies utilisées
+PHP (procédural + classes simples).
+
+PHPMailer pour l’envoi d’e‑mails SMTP.
+
+vlucas/phpdotenv pour la gestion des variables d’environnement.
+
+Dompdf pour la génération de PDF à partir de HTML.
+
+API INSEE Sirene 3.11 (endpoint /siret).
+
+API recherche-entreprises.api.gouv.fr pour enrichissement.
+​
+
+Serveur local type XAMPP (Apache + PHP).
+
+4. Dépendances Composer
+Les principales dépendances PHP du projet sont gérées via Composer :
+
+json
+{
+    "require": {
+        "phpmailer/phpmailer": "^7.0",
+        "vlucas/phpdotenv": "^5.6",
+        "dompdf/dompdf": "^3.1"
+    }
+}
+phpmailer/phpmailer : création et envoi d’e‑mails SMTP complets (HTML, encodage UTF‑8, etc.).
+
+vlucas/phpdotenv : chargement des variables d’environnement depuis le fichier .env dans $_ENV.
+
+dompdf/dompdf : génération de PDF à partir de HTML/CSS (tableaux, styles, pagination, etc.).
+
+5. Structure du projet
 
 projet-api-entreprise/
-├── src/               
-│   ├── SireneApi.php  # Gère la communication technique avec l'INSEE
-│   └── Mailer.php     # Gère la configuration et l'envoi des e-mails
-├── vendor/            # Bibliothèques externes (PHPMailer, Dotenv) gérées par Composer
-├── .env               # VOTRE COFFRE-FORT (Clés API, SMTP). Jamais envoyé sur GitHub.
-├── .env.example       # Modèle vide pour aider les autres développeurs.
-├── .gitignore         # Liste d'exclusion pour Git (ignore .env et /vendor).
-├── index.php          # Le point d'entrée principal (Logique métier et Affichage).
-└── lancer_mail.bat    # Script Windows pour automatiser l'envoi.
+├── src/
+│   ├── SireneApi.php      # Appels à l’API Sirene (requêtes, filtres, pagination)
+│   └── Mailer.php         # Envoi d’e-mails HTML via PHPMailer (SMTP Gmail)
+├── cache/                 # Fichiers JSON de cache (générés automatiquement)
+├── vendor/                # Dépendances Composer (PHPMailer, Dotenv, Dompdf, etc.)
+├── .env                   # Variables sensibles (API, SMTP, département) - non versionné
+├── .env.example           # Exemple de configuration (.env modèle)
+├── .gitignore             # Ignore /vendor, .env, et fichiers temporaires
+├── index.php              # Point d’entrée web + logique principale + tableau + envoi mail
+├── generer_pdf.php        # Génération et téléchargement d’un PDF de rapport complet
+├── annuaireApi.php        # Enrichissement via recherche-entreprises.api.gouv.fr
+├── nomenclature.php       # Mapping Code APE -> grande catégorie d’activité (A..U)
+└── lancer_mail.bat        # Script Windows pour exécution automatique (CLI)
+6. Configuration (.env)
+Le projet utilise phpdotenv pour charger les variables d’environnement.
 
-3. Détails approfondis du fonctionnement
-   
-A. Configuration via variables d'environnement
-Le script ne contient plus de données sensibles "en dur". Il utilise la bibliothèque phpdotenv pour charger les réglages depuis le fichier .env.
+Exemple .env (basé sur .env.example) :
 
-PHP
 
-$api = new SireneApi($_ENV['INSEE_API_KEY'], $_ENV['DEPARTEMENT']);
-Cela permet de changer de département ou de clé API sans jamais toucher au code source.
-
-B. Calcul automatique de la période
-Le script analyse les créations sur une fenêtre glissante. La date cible est calculée dynamiquement comme étant un mois avant la date du jour :
-
-PHP
-
-$dateCible = date('Y-m-d', strtotime('-1 month'));
-L'idée est de récupérer les entreprises créées ou traitées à cette date précise ou sur la plage correspondante.
-
-C. Appel à l’API INSEE Sirene
-La classe SireneApi construit une requête complexe.
-
-Le filtre : codePostalEtablissement:11* limite les résultats aux communes de l'Aude.
-
-La requête q : Elle combine la date de création OU la date de dernier traitement pour ne rien rater des mises à jour administratives.
-
-Le Tri : Les résultats sont triés par libelleCommuneEtablissement pour une lecture plus humaine.
-
-D. Gestion de la pagination (Curseurs)
-L’API Sirene ne renvoie pas toutes les données d'un coup si le volume est important. Elle utilise un système de "curseurs". Le script utilise une boucle do...while qui vérifie la présence d'un curseurSuivant dans l'en-tête de la réponse :
-
-PHP
-
-do {
-    $data = $api->fetchEntreprises($dateCible, $curseurActuel);
-    // Fusion des résultats dans le tableau global
-    $etablissements = array_merge($etablissements, $data['etablissements']);
-    // Mise à jour du curseur pour la page suivante
-} while ($curseurActuel);
-Cela garantit l'extraction de 100% des données, qu'il y ait 10 ou 5000 entreprises.
-
-4. Système de Rapport Email
-   
-Construction du message
-Pour éviter des e-mails trop lourds et illisibles, le script prépare une variable $lignesMail qui contient uniquement les 20 premières entreprises trouvées. Le corps du mail est un document HTML complet incluant :
-
-Un résumé du nombre total d'entreprises trouvées.
-
-Un tableau stylisé (Bordures, couleurs d'en-tête).
-
-Des liens "Figaro" générés dynamiquement via le SIRET.
-
-PHPMailer et SMTP
-L'envoi est géré par la classe Mailer qui encapsule la configuration SMTP de Gmail :
-
-Sécurité : Utilisation du chiffrement STARTTLS sur le port 587.
-
-Authentification : Utilisation obligatoire d'un "Mot de passe d'application" pour contourner la double authentification de Gmail.
-
-5. Installation pas à pas
-   
-   1 Cloner le dépôt
-Bash
-
-git clone https://github.com/votre-compte/projet-api-entreprise.git
-cd projet-api-entreprise
-
-   2 Installer les dépendances via Composer
-Bash
-
-composer require phpmailer/phpmailer vlucas/phpdotenv
-
-   3 Configurer l'environnement (CRUCIAL)
-Renommez .env.example en .env.
-
-Éditez .env avec vos vraies informations :
-
-Ini, TOML
-
-INSEE_API_KEY=votre_cle_api
-DESTINATAIRE_MAIL=votre@email.com
-SMTP_USER=votre@gmail.com
-SMTP_PASS=votre_code_application_gmail
+INSEE_API_KEY=votre_cle_ici
+DESTINATAIRE_MAIL=votre_mail_ici
+SMTP_USER=votre_mail_smtp
+SMTP_PASS=votre_mot_de_passe_application
 DEPARTEMENT=11
+INSEE_API_KEY : clé API Sirene obtenue sur le portail INSEE.
 
-6. Utilisation et Automatisation
-   
-- Exécution Web
-Placez le projet dans votre dossier htdocs (XAMPP). Ouvrez : http://localhost/projet-api-entreprise/index.php Le tableau s'affiche et un bouton vert permet l'envoi manuel du mail.
+DESTINATAIRE_MAIL : e‑mail cible par défaut (optionnel).
 
-- Exécution CLI (Ligne de commande)
-Le script détecte s'il est lancé via le terminal. L'envoi du mail est alors automatique :
+SMTP_USER : adresse Gmail utilisée pour l’envoi.
 
-Bash
+SMTP_PASS : mot de passe d’application Gmail.
 
+DEPARTEMENT : code département (par défaut 11 pour l’Aude).
+
+7. Installation
+Cloner le dépôt :
+
+bash
+git clone https://github.com/Gosselin11/projet-api-entreprise.git
+cd projet-api-entreprise
+Installer les dépendances via Composer :
+
+bash
+composer install
+# ou, si tu recrées le projet ailleurs :
+composer require phpmailer/phpmailer:^7.0 vlucas/phpdotenv:^5.6 dompdf/dompdf:^3.1
+Configurer .env comme décrit ci‑dessus.
+
+Placer le projet dans htdocs (XAMPP), par exemple :
+
+C:\xampp\htdocs\projet-api-entreprise\
+8. Fonctionnement détaillé
+8.1 Récupération des données (SireneApi.php)
+La classe SireneApi :
+
+stocke la clé API et le département,
+
+construit le filtre codePostalEtablissement:<DEPARTEMENT>*,
+
+interroge l’endpoint /siret avec une requête q combinant :
+
+dateCreationEtablissement:$date
+
+ou dateDernierTraitementEtablissement:$date*,
+
+gère la pagination via le paramètre curseur.
+
+La boucle dans index.php :
+
+récupère la première page, lit header.total et header.curseurSuivant,
+
+concatène etablissements dans un tableau global,
+
+continue tant qu’un curseurSuivant est présent.
+
+8.2 Cache local
+Pour éviter de solliciter l’API en continu :
+
+dossier cache/ créé automatiquement si nécessaire,
+
+fichier JSON : cache/sirene_<DEPARTEMENT>_<date>.json,
+
+structure : {"total": <nbTotalInsee>, "data": [ ... ]}.
+
+Lorsque le cache existe (et éventuellement n’est pas expiré), les données sont chargées depuis le fichier, avec un message de statut.
+
+8.3 Enrichissement des données (annuaireApi.php)
+Sur clic du lien “Enrichir les données” :
+
+charge le fichier de cache correspondant,
+
+pour chaque établissement avec nom masqué (Non diffusable) ou sans libellé d’activité,
+
+interroge https://recherche-entreprises.api.gouv.fr/search?q=<siret>,
+
+remplace/complète le nom, le libellé d’activité principale et la section d’activité,
+
+sauvegarde le cache mis à jour.
+​
+
+Une pause de 0,1 seconde entre requêtes limite la charge sur l’API.
+
+8.4 Classification par domaines d’activité (nomenclature.php)
+La fonction getNatureEntreprise($codeAPE) :
+
+extrait le préfixe numérique du code APE,
+
+s’appuie sur les tranches de codes pour associer l’entreprise à une section (A à U),
+
+renvoie une description lisible (commerce, santé, etc.).
+
+9. Interface Web (index.php)
+Formulaire de sélection de date (date_debut), valeur par défaut = aujourd’hui - 1 mois.
+
+Affichage d’un statut (données en cache ou appel API).
+
+Formulaire d’envoi d’e‑mail (champ destinataire + bouton “Envoyer Mail”).
+
+Lien pour générer le PDF (generer_pdf.php?date_debut=...).
+
+Lien “Enrichir les données” pour déclencher annuaireApi.php.
+
+Tableau HTML avec : Nom, Commune, CP, SIRET, Code APE, Code NAF, Dénomination NAF, Domaine d’activité, Date de traitement, liens Figaro/Annuaire.
+
+10. Génération du PDF (generer_pdf.php)
+Recharge les données depuis le cache pour la date demandée.
+
+Génère un HTML complet (en‑tête, nombre total, tableau, pied de page).
+
+Configure Dompdf (isHtml5ParserEnabled, isRemoteEnabled) et produit un PDF A4 portrait.
+
+Le PDF est envoyé au navigateur via stream() avec un nom du type Rapport_SIRENE_Aude_YYYY-MM-DD.pdf.
+
+11. Envoi d’e‑mail (Mailer.php + index.php)
+La classe Mailer encapsule PHPMailer avec la configuration :
+
+Host = smtp.gmail.com
+
+SMTPAuth = true
+
+Username = SMTP_USER
+
+Password = SMTP_PASS
+
+SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS
+
+Port = 587
+
+CharSet = UTF-8
+
+L’e‑mail contient :
+
+un résumé du nombre total d’entreprises,
+
+un tableau HTML avec les 20 premières entrées,
+
+des liens Figaro/Annuaire,
+
+un bouton “Voir le détail complet” vers l’interface Web.
+
+12. Utilisation
+12.1 Via navigateur
+Démarrer Apache (XAMPP).
+
+Ouvrir : http://localhost/projet-api-entreprise/index.php.
+
+Choisir une date et cliquer sur “Actualiser la liste”.
+
+Optionnel : envoyer un mail, télécharger le PDF, enrichir les données.
+
+12.2 Via CLI
+En ligne de commande, l’envoi de mail peut être déclenché ainsi :
+
+bash
 php index.php -- action=send
 
-Automatisation Windows (.bat)
+12.3 Automatisation Windows
 
-Le fichier lancer_mail.bat permet d'automatiser l'exécution via le Planificateur de tâches Windows.
+Le fichier lancer_mail.bat :
 
-Note : Vérifiez bien que le chemin vers php.exe correspond à votre installation (souvent C:\xampp\php\php.exe).
+@echo off
+"C:\xampp\php\php.exe" -f "C:\xampp\htdocs\projet-api-entreprise\index.php" -- action=send
+Peut être planifié via le Planificateur de tâches Windows pour un envoi automatique.
 
-7. Sécurité & Bonnes pratiques
-   
-Protection des Secrets : Le fichier .gitignore contient .env. Cela garantit que vos mots de passe ne seront jamais visibles sur GitHub.
+13. Sécurité & bonnes pratiques
+Ne jamais committer le fichier .env (déjà dans .gitignore).
 
-Limitation des mails : Le script limite l'affichage à 20 lignes dans l'e-mail pour éviter d'être considéré comme du spam.
+Utiliser un mot de passe d’application Gmail.
 
+Respecter les conditions d’utilisation de l’API Sirene et les limites de taux.
 
-1. Licence
-   
-Projet réalisé à des fins pédagogiques. L'utilisation des données SIRENE est soumise aux conditions générales de l'INSEE.
+Limiter la taille des e‑mails (20 lignes) pour éviter les problèmes de délivrabilité.
+
+14. Évolutions possibles
+Support multi‑départements.
+
+Filtres avancés (secteur, commune, plage de dates).
+
+Interface graphique améliorée (Bootstrap / Tailwind).
+
+Export CSV ou Excel en plus du PDF.
+
+15. Licence
+Projet réalisé à des fins pédagogiques.
+L’utilisation des données Sirene est soumise aux conditions de l’INSEE et aux CGU des API publiques utilisées.
