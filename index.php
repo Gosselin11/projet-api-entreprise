@@ -2,7 +2,7 @@
 
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-// set_time_limit(0);
+set_time_limit(0);
 
 require 'vendor/autoload.php';
 require 'src/SireneApi.php';
@@ -31,8 +31,15 @@ if (!is_dir($cacheFolder)) {
     mkdir($cacheFolder, 0777, true);
 }
 
+//$fichiersCache = glob($cacheFolder . DIRECTORY_SEPARATOR . 'sirene_*.json');
+//foreach ($fichiersCache as $fichier){
+   // if (time() - filemtime($fichier) > (7*86400)){
+       // unlink($fichier);
+   // }
+//}
+
 $cacheFile = $cacheFolder . DIRECTORY_SEPARATOR . 'sirene_' . $_ENV['DEPARTEMENT'] . '_' . $dateCible . '.json';
-$cacheExpiration = 86400; // 24 heures
+// $cacheExpiration = 86400; // 24 heures
 $statusMessage = ""; 
 
 // Gestion du Cache (avec option refresh)
