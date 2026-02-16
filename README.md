@@ -1,4 +1,5 @@
 Suivi des nouvelles entreprises (Aude - 11)
+
 Ce projet PHP interroge l’API INSEE Sirene 3.11 pour récupérer les nouvelles entreprises (établissements) du département de l’Aude (11), créées ou mises à jour à une date donnée, puis les affiche sous forme de tableau HTML, export PDF et rapport e‑mail.
 
 1. Objectifs du projet
@@ -57,6 +58,7 @@ json
         "dompdf/dompdf": "^3.1"
     }
 }
+
 phpmailer/phpmailer : création et envoi d’e‑mails SMTP complets (HTML, encodage UTF‑8, etc.).
 
 vlucas/phpdotenv : chargement des variables d’environnement depuis le fichier .env dans $_ENV.
@@ -66,24 +68,37 @@ dompdf/dompdf : génération de PDF à partir de HTML/CSS (tableaux, styles, pag
 5. Structure du projet
 
 projet-api-entreprise/
+
 ├── src/
+
 │   ├── SireneApi.php      # Appels à l’API Sirene (requêtes, filtres, pagination)
+
 │   └── Mailer.php         # Envoi d’e-mails HTML via PHPMailer (SMTP Gmail)
+
 ├── cache/                 # Fichiers JSON de cache (générés automatiquement)
+
 ├── vendor/                # Dépendances Composer (PHPMailer, Dotenv, Dompdf, etc.)
+
 ├── .env                   # Variables sensibles (API, SMTP, département) - non versionné
+
 ├── .env.example           # Exemple de configuration (.env modèle)
+
 ├── .gitignore             # Ignore /vendor, .env, et fichiers temporaires
+
 ├── index.php              # Point d’entrée web + logique principale + tableau + envoi mail
+
 ├── generer_pdf.php        # Génération et téléchargement d’un PDF de rapport complet
+
 ├── annuaireApi.php        # Enrichissement via recherche-entreprises.api.gouv.fr
+
 ├── nomenclature.php       # Mapping Code APE -> grande catégorie d’activité (A..U)
+
 └── lancer_mail.bat        # Script Windows pour exécution automatique (CLI)
+
 6. Configuration (.env)
 Le projet utilise phpdotenv pour charger les variables d’environnement.
 
 Exemple .env (basé sur .env.example) :
-
 
 INSEE_API_KEY=votre_cle_ici
 DESTINATAIRE_MAIL=votre_mail_ici
@@ -101,6 +116,7 @@ SMTP_PASS : mot de passe d’application Gmail.
 DEPARTEMENT : code département (par défaut 11 pour l’Aude).
 
 7. Installation
+   
 Cloner le dépôt :
 
 bash
@@ -112,12 +128,15 @@ bash
 composer install
 # ou, si tu recrées le projet ailleurs :
 composer require phpmailer/phpmailer:^7.0 vlucas/phpdotenv:^5.6 dompdf/dompdf:^3.1
+
 Configurer .env comme décrit ci‑dessus.
 
 Placer le projet dans htdocs (XAMPP), par exemple :
 
 C:\xampp\htdocs\projet-api-entreprise\
+
 8. Fonctionnement détaillé
+   
 8.1 Récupération des données (SireneApi.php)
 La classe SireneApi :
 
@@ -259,15 +278,6 @@ Respecter les conditions d’utilisation de l’API Sirene et les limites de tau
 
 Limiter la taille des e‑mails (20 lignes) pour éviter les problèmes de délivrabilité.
 
-14. Évolutions possibles
-Support multi‑départements.
-
-Filtres avancés (secteur, commune, plage de dates).
-
-Interface graphique améliorée (Bootstrap / Tailwind).
-
-Export CSV ou Excel en plus du PDF.
-
-15. Licence
+14.  Licence
 Projet réalisé à des fins pédagogiques.
 L’utilisation des données Sirene est soumise aux conditions de l’INSEE et aux CGU des API publiques utilisées.
